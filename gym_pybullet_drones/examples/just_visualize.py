@@ -46,7 +46,7 @@ DEFAULT_MA = False
 def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True):
     DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
 
-    filename = os.path.join(output_folder, '/app/results/save-07.15.2024_13.40.57')
+    filename = os.path.join(output_folder, '/app/results/save-07.15.2024_kin_discrete_2d')
     if not os.path.exists(filename):
         os.makedirs(filename+'/')
 
@@ -122,6 +122,9 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
     obs, info = test_env.reset(seed=42, options={})
     start = time.time()
+    #variable to be used in the register of the dataset
+    j = 1
+    dir_name = 'dataset'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S")
     for i in range((test_env.EPISODE_LEN_SEC)*test_env.CTRL_FREQ):
         action, _states = model.predict(obs,
                                         deterministic=True
@@ -131,13 +134,15 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         act2 = action.squeeze()
         print("Obs:", obs, "\tAction", action, "\tReward:", reward, "\tTerminated:", terminated, "\tTruncated:", truncated)
         
+        #this is to register the obs at the 5 second mark
         if i == 5*test_env.CTRL_FREQ:
             obs3 = obs2
 
-        #TODO THIS IS JUST FOR TESTING!
-        DEFAULT_OBS = ObservationType.POS_RPY
+        #this is to register the obs at the point that it passes the y=0.5 mark
+        if obs2[1] > 0.5 and "obs4" not in locals():
+            obs4 = obs2
 
-        if DEFAULT_OBS == ObservationType.KIN:
+        if DEFAULT_ACT != ActionType.DISCRETE_2D and DEFAULT_ACT != ActionType.DISCRETE_3D and DEFAULT_OBS == ObservationType.KIN:
             if not multiagent:
                 logger.log(drone=0,
                     timestamp=i/test_env.CTRL_FREQ,
@@ -162,7 +167,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                             ]),
                         control=np.zeros(12)
                         )
-        elif DEFAULT_OBS == ObservationType.POS_RPY:
+        elif DEFAULT_OBS == ObservationType.POS_RPY or DEFAULT_OBS == ObservationType.KIN:
             if DEFAULT_ACT == ActionType.DISCRETE_2D or DEFAULT_ACT == ActionType.DISCRETE_3D:
                 action_to_take = np.argmax(act2)
                 strong = 0.05
@@ -205,6 +210,16 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                         ]),
                     control=np.zeros(12)
                     )
+                #if the y coordinate is greater than 0.1, 0.2 0.3 etc register the obs and action
+                if obs2[1] > (j * 0.1):
+                    if not os.path.exists(dir_name):
+                        os.makedirs(dir_name)
+                    with open(dir_name+'/obs_act_y_equals_'+ str(j)+'.csv', 'w') as file:
+                        for obs_mom in obs2:
+                            file.write(f'{obs_mom}\n')
+                        file.write(f'{action_to_take}\n')
+                    j += 1
+
         test_env.render()
         print(terminated)
         sync(i, start, test_env.CTRL_TIMESTEP)
@@ -212,7 +227,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
             obs = test_env.reset(seed=42, options={})
     test_env.close()
 
-    print(obs3)
+    print(obs4)
 
     #if plot and DEFAULT_OBS == ObservationType.KIN:
     logger.plot()
