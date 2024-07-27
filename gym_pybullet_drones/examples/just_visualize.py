@@ -42,8 +42,9 @@ DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
 DEFAULT_ACT = ActionType('discrete_2d') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
 DEFAULT_AGENTS = 2
 DEFAULT_MA = False
+DEFAULT_STEP = 0.1
 
-def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True):
+def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP):
     DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
 
     filename = os.path.join(output_folder, '/app/results/save-07.15.2024_kin_discrete_2d')
@@ -210,11 +211,11 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                         ]),
                     control=np.zeros(12)
                     )
-                #if the y coordinate is greater than 0.1, 0.2 0.3 etc register the obs and action
-                if obs2[1] > (j * 0.1):
+                #if the y coordinate is greater than 0.1, 0.2 0.3 etc (if step = default (0.1)) register the obs and action
+                if obs2[1] > (j * step):
                     if not os.path.exists(dir_name):
                         os.makedirs(dir_name)
-                    with open(dir_name+'/obs_act_y_equals_'+ str(j)+'.csv', 'w') as file:
+                    with open(dir_name+'/obs_act_y_equals_'+ str(j).zfill(3)+'.csv', 'w') as file:
                         for obs_mom in obs2:
                             file.write(f'{obs_mom}\n')
                         file.write(f'{action_to_take}\n')
@@ -241,6 +242,7 @@ if __name__ == '__main__':
     parser.add_argument('--record_video',       default=DEFAULT_RECORD_VIDEO,  type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--output_folder',      default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
     parser.add_argument('--colab',              default=DEFAULT_COLAB,         type=bool,          help='Whether example is being run by a notebook (default: "False")', metavar='')
+    parser.add_argument('--step',               default=DEFAULT_STEP,          type=float,         help='What is the step in the y axis to record for the dataset', metavar='')
     ARGS = parser.parse_args()
 
     run(**vars(ARGS))
