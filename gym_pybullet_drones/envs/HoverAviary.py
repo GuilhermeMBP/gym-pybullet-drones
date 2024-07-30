@@ -49,7 +49,7 @@ class HoverAviary(BaseRLAviary):
 
         """
         #TODO I CHANGED TIHS FROM 1,1,1 TO: 0,0,1
-        self.TARGET_POS = np.array([0,1,1])
+        self.TARGET_POS = np.array([0,0,1])
         #TODO I CHANGED TIHS FROM 8 TO 16
         self.EPISODE_LEN_SEC = 8
         super().__init__(drone_model=drone_model,

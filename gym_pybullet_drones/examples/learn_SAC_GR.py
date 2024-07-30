@@ -54,10 +54,10 @@ def run(multiagent=DEFAULT_MA,
         colab=DEFAULT_COLAB, 
         record_video=DEFAULT_RECORD_VIDEO, 
         local=True, 
-        learning_rate=0.01, 
+        learning_rate=0.0004, 
         gamma=0.99, 
-        batch_size=64, 
-        net_arch=[32, 32], 
+        batch_size=128, 
+        net_arch=[64, 64], 
         ent_coef=0.01, 
         target_entropy=-1.0):
 
@@ -70,13 +70,12 @@ def run(multiagent=DEFAULT_MA,
             "learning_rate": learning_rate,
             "gamma": gamma,
             "batch_size": batch_size,
-            "buffer_size": 1000000,
-            "gamma": 0.99,
+            "buffer_size": 500000,
             "tau": 0.005,
             "train_freq": 64,
             "gradient_steps": 64,
             "n_eval_episodes": 10,
-            "eval_freq": 1000,
+            "eval_freq": 5000,
             "epochs": 70,
             "net_arch": net_arch,
             "ent_coef": ent_coef,
@@ -114,6 +113,8 @@ def run(multiagent=DEFAULT_MA,
     
     model = SAC('MlpPolicy',
                 train_env,
+                learning_rate=learning_rate,
+                gamma=gamma,
                 # tensorboard_log=filename+'/tb/',
                 policy_kwargs=policy_kwargs,
                 verbose=1)
@@ -265,8 +266,8 @@ def run(multiagent=DEFAULT_MA,
             obs = test_env.reset(seed=42, options={})
     test_env.close()
 
-    if plot and DEFAULT_OBS == ObservationType.KIN:
-        logger.plot()
+    #if plot and DEFAULT_OBS == ObservationType.KIN:
+    #    logger.plot()
 
     return mean_reward
 
@@ -274,9 +275,9 @@ def objective(trial):
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
     batch_size = trial.suggest_categorical('batch_size', [64, 128, 256, 512])
     gamma = trial.suggest_float('gamma', 0.95, 0.9999)
-    #net_arch = trial.suggest_categorical('net_arch', [[32, 32], [64, 64], [128, 128]])
-    #ent_coef = trial.suggest_float('ent_coef', 0.0, 0.1, log=True)
-    #target_entropy = trial.suggest_float('target_entropy', -5.0, 0.0)
+    net_arch = trial.suggest_categorical('net_arch', [[32, 32], [64, 64], [128, 128], [256, 256]])
+    ent_coef = trial.suggest_float('ent_coef', 1e-5, 0.1, log=True)
+    target_entropy = trial.suggest_float('target_entropy', -5.0, 0.0)
     
     # Call the run function with these hyperparameters
     mean_reward = run(
@@ -290,12 +291,13 @@ def objective(trial):
         learning_rate=learning_rate,
         gamma=gamma,
         batch_size=batch_size,
-        #net_arch=net_arch,
-        #ent_coef=ent_coef,
-        #target_entropy=target_entropy
+        net_arch=net_arch,
+        ent_coef=ent_coef,
+        target_entropy=target_entropy
     )
     
     return mean_reward
+
 
 if __name__ == '__main__':
     #### Define and parse (optional) arguments for the script ##
@@ -304,7 +306,7 @@ if __name__ == '__main__':
     parser.add_argument('--gui',                default=DEFAULT_GUI,           type=str2bool,      help='Whether to use PyBullet GUI (default: True)', metavar='')
     parser.add_argument('--record_video',       default=DEFAULT_RECORD_VIDEO,  type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--output_folder',      default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
-    parser.add_argument('--colab',              default=DEFAULT_COLAB,         type=bool,          help='Whether example is being run by a notebook (default: "False")', metavar='')
+    parser.add_argument('--colab',              default=DEFAULT_COLAB,         type=str2bool,      help='Whether example is being run by a notebook (default: "False")', metavar='')
     ARGS = parser.parse_args()
 
     # Run Optuna optimization
