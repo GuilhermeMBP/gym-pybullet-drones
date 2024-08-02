@@ -151,17 +151,17 @@ class BaseRLAviary(BaseAviary):
             size = 7
         elif self.ACT_TYPE==ActionType.DISCRETE_3D:   #STRONG LEFT, WEAK LEFT, UP, HOVER, DOWN, WEAK RIGHT, STRONG RIGHT
             size = 11
+        elif self.ACT_TYPE==ActionType.DISCRETE_2D_COMPLEX:   #STRONG LEFT, MED LEFT, WEAK LEFT, STRONG UP, MED UP, WEAK UP, HOVER,WEAK DOWN, MED DOWN, STRONG DOWN, WEAK RIGHT, MED RIGHT, STRONG RIGHT, STRONG UP-LEFT, MED UP-LEFT, WEAK UP-LEFT, STRONG UP-RIGHT, MED UP-RIGHT, WEAK UP-RIGHT, STRONG DOWN-LEFT, MED DOWN-LEFT, WEAK DOWN-LEFT, STRONG DOWN-RIGHT, MED DOWN-RIGHT, WEAK DOWN-RIGHT
+            size = 25
         else:
             print("[ERROR] in BaseRLAviary._actionSpace()")
             exit()
-        if self.ACT_TYPE==ActionType.DISCRETE_2D or self.ACT_TYPE==ActionType.DISCRETE_3D:
+        if self.ACT_TYPE==ActionType.DISCRETE_2D or self.ACT_TYPE==ActionType.DISCRETE_3D or self.ACT_TYPE==ActionType.DISCRETE_2D_COMPLEX:
             ##
             act_lower_bound = np.array([0*np.ones(size) for i in range(self.NUM_DRONES)])
             act_upper_bound = np.array([+1*np.ones(size) for i in range(self.NUM_DRONES)])
             return spaces.Box(low=act_lower_bound, high=act_upper_bound, dtype=np.float32)
-            ##
-            #TODO VOLTAR A ALTERAR
-            #return spaces.Discrete(size)
+
         #TODO actions stay in the range [-1,1] ?
         act_lower_bound = np.array([-1*np.ones(size) for i in range(self.NUM_DRONES)])
         act_upper_bound = np.array([+1*np.ones(size) for i in range(self.NUM_DRONES)])
@@ -203,50 +203,10 @@ class BaseRLAviary(BaseAviary):
         self.action_buffer.append(action)
         rpm = np.zeros((self.NUM_DRONES,4))
 
-        if self.ACT_TYPE == ActionType.DISCRETE_2D or self.ACT_TYPE == ActionType.DISCRETE_3D:
+        if self.ACT_TYPE == ActionType.DISCRETE_2D or self.ACT_TYPE == ActionType.DISCRETE_3D or self.ACT_TYPE == ActionType.DISCRETE_2D_COMPLEX:
             action_to_take = np.argmax(action)
-            strong = 0.05
-            weak = 0.025
-            if action_to_take == 0: #STRONG LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
-            elif action_to_take == 1: #WEAK LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
-            elif action_to_take == 2: #UP
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+strong), 4)
-            elif action_to_take == 3: #HOVER
-                rpm[0,:] = np.repeat(self.HOVER_RPM, 4)
-            elif action_to_take == 4: #DOWN
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-strong), 4)
-            elif action_to_take == 5: #WEAK RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-            elif action_to_take == 6: #STRONG RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-            else:
-                    if action_to_take == 7: #STRONG FORWARD
-                        rpm[0,0] = self.HOVER_RPM * (1+strong)
-                        rpm[0,1] = self.HOVER_RPM
-                        rpm[0,2] = self.HOVER_RPM * (1+strong)
-                        rpm[0,3] = self.HOVER_RPM
-                    elif action_to_take == 8: #WEAK FORWARD
-                        rpm[0,0] = self.HOVER_RPM * (1+weak)
-                        rpm[0,1] = self.HOVER_RPM
-                        rpm[0,2] = self.HOVER_RPM * (1+weak)
-                        rpm[0,3] = self.HOVER_RPM
-                    elif action_to_take == 9: #WEAK BACKWARD
-                        rpm[0,0] = self.HOVER_RPM
-                        rpm[0,1] = self.HOVER_RPM * (1+weak)
-                        rpm[0,2] = self.HOVER_RPM
-                        rpm[0,3] = self.HOVER_RPM * (1+weak)
-                    elif action_to_take == 10: #STRONG BACKWARD
-                        rpm[0,0] = self.HOVER_RPM
-                        rpm[0,1] = self.HOVER_RPM * (1+strong)
-                        rpm[0,2] = self.HOVER_RPM
-                        rpm[0,3] = self.HOVER_RPM * (1+strong)
-                
+            rpm = self._getRPMs(action_to_take)
+   
         else:
             for k in range(action.shape[0]):
                 target = action[k, :]
@@ -329,6 +289,108 @@ class BaseRLAviary(BaseAviary):
                 else:
                     print("[ERROR] in BaseRLAviary._preprocessAction()")
                     exit()
+        return rpm
+
+    ################################################################################
+    def _getRPMs(self, action_to_take):
+        rpm = np.zeros((self.NUM_DRONES,4))
+        if self.ACT_TYPE == ActionType.DISCRETE_2D:
+            strong = 0.05
+            weak = 0.025
+            if action_to_take == 0: #STRONG LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
+            elif action_to_take == 1: #WEAK LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
+            elif action_to_take == 2: #UP
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+strong), 4)
+            elif action_to_take == 3: #HOVER
+                rpm[0,:] = np.repeat(self.HOVER_RPM, 4)
+            elif action_to_take == 4: #DOWN
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-strong), 4)
+            elif action_to_take == 5: #WEAK RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+            elif action_to_take == 6: #STRONG RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+        elif self.ACT_TYPE == ActionType.DISCRETE_3D:
+            raise NotImplementedError("DISCRETE_3D not implemented yet")
+        elif self.ACT_TYPE == ActionType.DISCRETE_2D_COMPLEX:
+            strong = 0.05
+            med = 0.025
+            weak = 0.01
+            very_weak = 0.005
+            if action_to_take == 0: #STRONG LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
+            elif action_to_take == 1: #MED LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
+            elif action_to_take == 2: #WEAK LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
+            elif action_to_take == 3: #STRONG UP-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
+            elif action_to_take == 4: #MED UP-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+            elif action_to_take == 5: #WEAK UP-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+very_weak), 2)
+            elif action_to_take == 6: #STRONG UP
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+strong), 4)
+            elif action_to_take == 7: #MED UP
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+med), 4)
+            elif action_to_take == 8: #WEAK UP
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+weak), 4)
+            elif action_to_take == 9: #HOVER
+                rpm[0,:] = np.repeat(self.HOVER_RPM, 4)
+            elif action_to_take == 10: #STRONG UP-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+            elif action_to_take == 11: #MED UP-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
+            elif action_to_take == 12: #WEAK UP-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+very_weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+            elif action_to_take == 13: #STRONG RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+            elif action_to_take == 14: #MED RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
+            elif action_to_take == 15: #WEAK RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
+            elif action_to_take == 16: #STRONG DOWN-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-med), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-strong), 2)
+            elif action_to_take == 17: #MED DOWN-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-med), 2)
+            elif action_to_take == 18: #WEAK DOWN-RIGHT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-very_weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-weak), 2)
+            elif action_to_take == 19: #STRONG DOWN
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-strong), 4)
+            elif action_to_take == 20: #MED DOWN
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-med), 4)
+            elif action_to_take == 21: #WEAK DOWN
+                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-weak), 4)
+            elif action_to_take == 22: #STRONG DOWN-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-strong), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-med), 2)
+            elif action_to_take == 23: #MED DOWN-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-med), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-weak), 2)
+            elif action_to_take == 24: #WEAK DOWN-LEFT
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-weak), 2)
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-very_weak), 2)
+
         return rpm
 
     ################################################################################

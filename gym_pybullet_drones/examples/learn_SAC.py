@@ -22,6 +22,7 @@ import argparse
 import gymnasium as gym
 import numpy as np
 import torch
+import wandb
 from stable_baselines3 import SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold
@@ -39,7 +40,7 @@ DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
 DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
-DEFAULT_ACT = ActionType('discrete_2d') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
+DEFAULT_ACT = ActionType('discrete_2d_complex') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
 DEFAULT_AGENTS = 2
 DEFAULT_MA = False
 
@@ -70,7 +71,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
     #### Train the model #######################################
     policy_kwargs = dict(activation_fn=torch.nn.ReLU,
-                     net_arch=dict(pi=[32, 32], vf=[32, 32], qf=[128, 128]))
+                     net_arch=dict(pi=[32, 32], qf=[128, 128]))
     
     model = SAC('MlpPolicy',
                 train_env,
@@ -93,6 +94,18 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                  eval_freq=int(1000),
                                  deterministic=True,
                                  render=False)
+    
+    wandb.init(
+    # set the wandb project where this run will be logged
+    project="fnnv4uavs",
+
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": 0.0003,
+    "architecture": "SAC",
+    }
+    )
+    
     model.learn(total_timesteps=int(1e7) if local else int(1e2), # shorter training in GitHub Actions pytest
                 callback=eval_callback,
                 log_interval=100)

@@ -43,8 +43,9 @@ DEFAULT_ACT = ActionType('discrete_2d') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm'
 DEFAULT_AGENTS = 2
 DEFAULT_MA = False
 DEFAULT_STEP = 0.1
+DEFAULT_AXIS = 'y'
 
-def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP):
+def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP, x=0, y=0, z=0.1125, step_axis=DEFAULT_AXIS):
     DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
 
     filename = os.path.join(output_folder, '/app/results/save-07.15.2024_kin_discrete_2d')
@@ -58,13 +59,6 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                  seed=0
                                  )
         eval_env = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
-    else:
-        train_env = make_vec_env(MultiHoverAviary,
-                                 env_kwargs=dict(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT),
-                                 n_envs=1,
-                                 seed=0
-                                 )
-        eval_env = MultiHoverAviary(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT)
 
     #### Check the environment's spaces ########################
     print('[INFO] Action space:', train_env.action_space)
@@ -100,15 +94,8 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                obs=DEFAULT_OBS,
                                act=DEFAULT_ACT,
                                record=record_video, 
-                               initial_xyzs=np.array([[0,0,0.1125]]))
+                               initial_xyzs=np.array([[x, y, z]]))
         test_env_nogui = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
-    else:
-        test_env = MultiHoverAviary(gui=gui,
-                                        num_drones=DEFAULT_AGENTS,
-                                        obs=DEFAULT_OBS,
-                                        act=DEFAULT_ACT,
-                                        record=record_video)
-        test_env_nogui = MultiHoverAviary(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT)
     logger = Logger(logging_freq_hz=int(test_env.CTRL_FREQ),
                 num_drones=DEFAULT_AGENTS if multiagent else 1,
                 output_folder=output_folder,
@@ -120,6 +107,16 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                               n_eval_episodes=10
                                               )
     print("\n\n\nMean reward ", mean_reward, " +- ", std_reward, "\n\n")
+
+    index_axis = 1
+    if step_axis == 'x':
+        index_axis = 0
+    elif step_axis == 'y':
+        index_axis = 1
+    elif step_axis == 'z':
+        index_axis = 2
+    else:
+        raise ValueError("Invalid step_axis")
 
     obs, info = test_env.reset(seed=42, options={})
     start = time.time()
@@ -171,35 +168,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         elif DEFAULT_OBS == ObservationType.POS_RPY or DEFAULT_OBS == ObservationType.KIN:
             if DEFAULT_ACT == ActionType.DISCRETE_2D or DEFAULT_ACT == ActionType.DISCRETE_3D:
                 action_to_take = np.argmax(act2)
-                strong = 0.05
-                weak = 0.025
-                rpm = np.zeros(4)
-                if action_to_take == 0: #STRONG LEFT
-                    rpm[:2] = np.repeat(test_env.HOVER_RPM * (1+strong), 2)
-                    rpm[2:] = np.repeat(test_env.HOVER_RPM, 2)
-                elif action_to_take == 1: #WEAK LEFT
-                    rpm[:2] = np.repeat(test_env.HOVER_RPM * (1+weak), 2)
-                    rpm[2:] = np.repeat(test_env.HOVER_RPM, 2)
-                    print("\n\n\n\nweak was selected!!\n\n\n\n")
-                elif action_to_take == 2: #UP
-                    rpm[:] = np.repeat(test_env.HOVER_RPM * (1+strong), 4)
-                elif action_to_take == 3: #HOVER
-                    rpm[:] = np.repeat(test_env.HOVER_RPM, 4)
-                elif action_to_take == 4: #DOWN
-                    rpm[:] = np.repeat(test_env.HOVER_RPM * (1-strong), 4)
-                elif action_to_take == 5: #WEAK RIGHT
-                    rpm[:2] = np.repeat(test_env.HOVER_RPM, 2)
-                    rpm[2:] = np.repeat(test_env.HOVER_RPM * (1+weak), 2)
-                    print("\n\n\n\nweak was selected!!\n\n\n\n")
-                elif action_to_take == 6: #STRONG RIGHT
-                    rpm[:2] = np.repeat(test_env.HOVER_RPM, 2)
-                    rpm[2:] = np.repeat(test_env.HOVER_RPM * (1+strong), 2)
-                elif action_to_take == 7: #STRONG FORWARD
-                    rpm[0] = rpm[2] = test_env.HOVER_RPM * (1+strong)
-                    rpm[1] = rpm[3] = test_env.HOVER_RPM
-                elif action_to_take == 6: #WEAK RIGHT
-                    rpm[:2] = np.repeat(test_env.HOVER_RPM, 2)
-                    rpm[2:] = np.repeat(test_env.HOVER_RPM * (1+strong), 2)
+                rpm = test_env._getRPMs(action_to_take)
                 logger.log(drone=0,
                     timestamp=i/test_env.CTRL_FREQ,
                     state=np.hstack([obs2[0:3],
@@ -211,8 +180,10 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                         ]),
                     control=np.zeros(12)
                     )
-                #if the y coordinate is greater than 0.1, 0.2 0.3 etc (if step = default (0.1)) register the obs and action
-                if obs2[1] > (j * step):
+                #if step is positive and the coordinate in [step_axis] is greater than (starting coordinate in step_axis) + step, (if step = default (0.1) and starting coordinate in step_axis = 0 then 0.1, 0.2 0.3 etc) 
+                # or if step is negative and ... is less than ... then
+                # register the obs and action
+                if (step > 0 and obs2[index_axis] > (j * step) + test_env.INIT_XYZS[0][index_axis]) or (step < 0 and obs2[index_axis] < (j * step) + test_env.INIT_XYZS[0][index_axis]):
                     if not os.path.exists(dir_name):
                         os.makedirs(dir_name)
                     with open(dir_name+'/obs_act_y_equals_'+ str(j).zfill(3)+'.csv', 'w') as file:
@@ -242,7 +213,11 @@ if __name__ == '__main__':
     parser.add_argument('--record_video',       default=DEFAULT_RECORD_VIDEO,  type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--output_folder',      default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
     parser.add_argument('--colab',              default=DEFAULT_COLAB,         type=bool,          help='Whether example is being run by a notebook (default: "False")', metavar='')
-    parser.add_argument('--step',               default=DEFAULT_STEP,          type=float,         help='What is the step in the y axis to record for the dataset', metavar='')
+    parser.add_argument('--x',                  default=0,                     type=float,         help='X coordinate for the starting point of the drone', metavar='')
+    parser.add_argument('--y',                  default=0,                     type=float,         help='Y coordinate for the starting point of the drone', metavar='')
+    parser.add_argument('--z',                  default=0.1125,                type=float,         help='Z coordinate for the starting point of the drone', metavar='')
+    parser.add_argument('--step',               default=DEFAULT_STEP,          type=float,         help='What is the step in the [step_axis] axis to record for the dataset', metavar='')
+    parser.add_argument('--step_axis',          default=DEFAULT_AXIS,          type=str,           help='What axis to use for the step (x, y, z)', metavar='')
     ARGS = parser.parse_args()
 
     run(**vars(ARGS))
