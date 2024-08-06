@@ -29,6 +29,7 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.monitor import Monitor
 
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.envs.HoverAviary import HoverAviary
@@ -54,12 +55,16 @@ def run(multiagent=DEFAULT_MA,
         colab=DEFAULT_COLAB, 
         record_video=DEFAULT_RECORD_VIDEO, 
         local=True, 
-        learning_rate=0.0004, 
+        learning_rate=0.0003, 
         gamma=0.99, 
         batch_size=128, 
-        net_arch=[64, 64], 
+        net_arch=(64, 64), 
         ent_coef=0.01, 
-        target_entropy=-1.0):
+        target_entropy=-1.0,
+        num_epochs=300,
+        total_steps=1000,
+        num_envs=4
+        ):
 
     # Initialize W&B
     wandb.login()
@@ -76,13 +81,15 @@ def run(multiagent=DEFAULT_MA,
             "gradient_steps": 64,
             "n_eval_episodes": 10,
             "eval_freq": 5000,
-            "epochs": 70,
+            "epochs": num_epochs,
             "net_arch": net_arch,
             "ent_coef": ent_coef,
-            "target_entropy": target_entropy 
+            "target_entropy": target_entropy
         },
     )
-    config = wandb.config
+
+    # Explicitly log the learning rate
+    wandb.log({"learning_rate": learning_rate})
 
     filename = os.path.join(output_folder, 'save-'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S"))
     if not os.path.exists(filename):
@@ -91,17 +98,19 @@ def run(multiagent=DEFAULT_MA,
     if not multiagent:
         train_env = make_vec_env(HoverAviary,
                                  env_kwargs=dict(obs=DEFAULT_OBS, act=DEFAULT_ACT),
-                                 n_envs=1,
+                                 n_envs=num_envs,
                                  seed=0
                                  )
         eval_env = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
     else:
         train_env = make_vec_env(MultiHoverAviary,
                                  env_kwargs=dict(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT),
-                                 n_envs=1,
+                                 n_envs=num_envs,
                                  seed=0
                                  )
         eval_env = MultiHoverAviary(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT)
+
+    eval_env = Monitor(eval_env)
 
     #### Check the environment's spaces ########################
     print('[INFO] Action space:', train_env.action_space)
@@ -115,11 +124,14 @@ def run(multiagent=DEFAULT_MA,
                 train_env,
                 learning_rate=learning_rate,
                 gamma=gamma,
+                device="cuda",
                 # tensorboard_log=filename+'/tb/',
                 policy_kwargs=policy_kwargs,
                 verbose=1)
-
-
+   
+    # Set up optimizer and learning rate scheduler
+    optimizer = torch.optim.Adam(model.policy.parameters(), lr=learning_rate)
+                       
     #### Target cumulative rewards (problem-dependent) ##########
     if DEFAULT_ACT == ActionType.ONE_D_RPM:
         target_reward = 474.15 if not multiagent else 949.5
@@ -147,11 +159,10 @@ def run(multiagent=DEFAULT_MA,
     callbacks = [eval_callback, wandb_callback]
 
     #### Simulating Training Run with W&B Logging ####
-    epochs = config.epochs  # Define epochs here or use a default value
-    for epoch in range(epochs):
+    for epoch in range(num_epochs):
         # Train the model
-        model.learn(total_timesteps=1000, callback=callbacks, log_interval=100)
-        
+        model.learn(total_timesteps=total_steps, callback=callbacks, log_interval=100)
+
         # Log training metrics
         train_mean_reward, train_std_reward = evaluate_policy(model, train_env, n_eval_episodes=10)
         eval_mean_reward, eval_std_reward = evaluate_policy(model, eval_env, n_eval_episodes=10)
@@ -189,9 +200,11 @@ def run(multiagent=DEFAULT_MA,
     ############################################################
     ############################################################
 
+#Desligar
     if local:
-        input("Press Enter to continue...")
-    #    print("Done!")
+    #  input("Press Enter to continue...")
+       print("Done!")
+
 
     if os.path.isfile(filename+'/final_model.zip'):
          path = filename+'/final_model.zip'
@@ -199,6 +212,7 @@ def run(multiagent=DEFAULT_MA,
         path = filename+'/best_model.zip'
     else:
         print("[ERROR]: no model under the specified path", filename)
+#Desligar
     model = SAC.load(path)
 
     #### Show (and record a video of) the model's performance ##
@@ -266,18 +280,22 @@ def run(multiagent=DEFAULT_MA,
             obs = test_env.reset(seed=42, options={})
     test_env.close()
 
+#Desligar
     #if plot and DEFAULT_OBS == ObservationType.KIN:
     #    logger.plot()
 
     return mean_reward
 
 def objective(trial):
-    learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
-    batch_size = trial.suggest_categorical('batch_size', [64, 128, 256, 512])
-    gamma = trial.suggest_float('gamma', 0.95, 0.9999)
-    net_arch = trial.suggest_categorical('net_arch', [[32, 32], [64, 64], [128, 128], [256, 256]])
+    learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-1, log=True)
+    batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 512])
+    gamma = trial.suggest_float('gamma', 0.9, 0.9999)
+    #net_arch = trial.suggest_categorical('net_arch', [(32, 32), (64, 64), (128, 128), (256, 256)])
+    net_arch_str = trial.suggest_categorical('net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
+    net_arch = tuple(map(int, net_arch_str.strip('()').split(', ')))
     ent_coef = trial.suggest_float('ent_coef', 1e-5, 0.1, log=True)
     target_entropy = trial.suggest_float('target_entropy', -5.0, 0.0)
+
     
     # Call the run function with these hyperparameters
     mean_reward = run(
@@ -293,11 +311,11 @@ def objective(trial):
         batch_size=batch_size,
         net_arch=net_arch,
         ent_coef=ent_coef,
-        target_entropy=target_entropy
+        target_entropy=target_entropy,
+        num_envs=4 
     )
     
     return mean_reward
-
 
 if __name__ == '__main__':
     #### Define and parse (optional) arguments for the script ##
@@ -310,7 +328,7 @@ if __name__ == '__main__':
     ARGS = parser.parse_args()
 
     # Run Optuna optimization
-    study = optuna.create_study(storage='sqlite:///my_study.db', direction='maximize')
+    study = optuna.create_study(storage='sqlite:///my_study.db', study_name="drones", direction='maximize', load_if_exists=True)
     study.optimize(objective, n_trials=50)
 
     print("Best hyperparameters: ", study.best_params)
