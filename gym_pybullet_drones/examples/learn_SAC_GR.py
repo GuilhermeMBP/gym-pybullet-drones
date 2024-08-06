@@ -58,11 +58,11 @@ def run(multiagent=DEFAULT_MA,
         learning_rate=0.0003, 
         gamma=0.99, 
         batch_size=128, 
-        net_arch=(64, 64), 
+        net_arch=(64, 64),
         ent_coef=0.01, 
         target_entropy=-1.0,
-        num_epochs=300,
-        total_steps=1000,
+        num_epochs=100,
+        total_steps=50000,
         num_envs=4
         ):
 
@@ -125,12 +125,11 @@ def run(multiagent=DEFAULT_MA,
                 learning_rate=learning_rate,
                 gamma=gamma,
                 device="cuda",
-                # tensorboard_log=filename+'/tb/',
                 policy_kwargs=policy_kwargs,
-                verbose=1)
-   
-    # Set up optimizer and learning rate scheduler
-    optimizer = torch.optim.Adam(model.policy.parameters(), lr=learning_rate)
+                verbose=1,
+                ent_coef=ent_coef,
+                target_entropy=target_entropy
+                )
                        
     #### Target cumulative rewards (problem-dependent) ##########
     if DEFAULT_ACT == ActionType.ONE_D_RPM:
@@ -290,7 +289,6 @@ def objective(trial):
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-1, log=True)
     batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 512])
     gamma = trial.suggest_float('gamma', 0.9, 0.9999)
-    #net_arch = trial.suggest_categorical('net_arch', [(32, 32), (64, 64), (128, 128), (256, 256)])
     net_arch_str = trial.suggest_categorical('net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
     net_arch = tuple(map(int, net_arch_str.strip('()').split(', ')))
     ent_coef = trial.suggest_float('ent_coef', 1e-5, 0.1, log=True)
@@ -329,7 +327,7 @@ if __name__ == '__main__':
 
     # Run Optuna optimization
     study = optuna.create_study(storage='sqlite:///my_study.db', study_name="drones", direction='maximize', load_if_exists=True)
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=20)
 
     print("Best hyperparameters: ", study.best_params)
     print("Best reward: ", study.best_value)
