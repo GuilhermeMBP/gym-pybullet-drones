@@ -61,8 +61,8 @@ def run(multiagent=DEFAULT_MA,
         net_arch=(64, 64),
         ent_coef=0.01, 
         target_entropy=-1.0,
-        num_epochs=100,
-        total_steps=50000,
+        num_epochs=250,
+        total_steps=1000,
         num_envs=4
         ):
 
@@ -326,7 +326,13 @@ if __name__ == '__main__':
     ARGS = parser.parse_args()
 
     # Run Optuna optimization
-    study = optuna.create_study(storage='sqlite:///my_study.db', study_name="drones", direction='maximize', load_if_exists=True)
+    #study = optuna.create_study(storage='sqlite:///my_study.db', study_name="drones", direction='maximize', load_if_exists=True)
+    study = optuna.create_study(
+        study_name="drones",
+        storage='mysql+pymysql://optuna_user:Estg_12345#@localhost:3306/optuna_db',
+        direction='maximize'
+    )
+
     study.optimize(objective, n_trials=20)
 
     print("Best hyperparameters: ", study.best_params)
