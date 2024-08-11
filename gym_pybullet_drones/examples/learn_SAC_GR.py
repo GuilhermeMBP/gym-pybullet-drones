@@ -314,7 +314,7 @@ def objective(trial):
         record_video=DEFAULT_RECORD_VIDEO,
         local=True,
         learning_rate=learning_rate,
-        gamma=gamma,
+        gamma=gamma,    
         batch_size=batch_size,
         net_arch={'pi': pi_net_arch, 'qf': qf_net_arch},
         ent_coef=ent_coef,
