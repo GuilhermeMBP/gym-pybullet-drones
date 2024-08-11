@@ -58,7 +58,7 @@ def run(multiagent=DEFAULT_MA,
         learning_rate=0.0003, 
         gamma=0.99, 
         batch_size=128, 
-        net_arch=(64, 64),
+        net_arch={'pi': [64, 64], 'qf': [128, 128]},
         ent_coef=0.01, 
         target_entropy=-1.0,
         num_epochs=250,
@@ -117,8 +117,10 @@ def run(multiagent=DEFAULT_MA,
     print('[INFO] Observation space:', train_env.observation_space)
 
     #### Train the model #######################################
-    policy_kwargs = dict(activation_fn=torch.nn.ReLU,
-                         net_arch=dict(pi=net_arch, vf=net_arch, qf=[128, 128]))
+    policy_kwargs = dict(
+                        activation_fn=torch.nn.ReLU,
+                        net_arch=net_arch
+                        ) 
     
     model = SAC('MlpPolicy',
                 train_env,
@@ -289,8 +291,15 @@ def objective(trial):
     learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-1, log=True)
     batch_size = trial.suggest_categorical('batch_size', [32, 64, 128, 512])
     gamma = trial.suggest_float('gamma', 0.9, 0.9999)
-    net_arch_str = trial.suggest_categorical('net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
-    net_arch = tuple(map(int, net_arch_str.strip('()').split(', ')))
+    #net_arch_str = trial.suggest_categorical('net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
+    #net_arch = tuple(map(int, net_arch_str.strip('()').split(', ')))
+    
+    # Redes separadas para pi e qf
+    pi_net_arch_str = trial.suggest_categorical('pi_net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
+    qf_net_arch_str = trial.suggest_categorical('qf_net_arch', ['(32, 32)', '(64, 64)', '(128, 128)', '(256, 256)'])
+    pi_net_arch = tuple(map(int, pi_net_arch_str.strip('()').split(', ')))
+    qf_net_arch = tuple(map(int, qf_net_arch_str.strip('()').split(', ')))
+
     ent_coef = trial.suggest_float('ent_coef', 1e-5, 0.1, log=True)
     target_entropy = trial.suggest_float('target_entropy', -5.0, 0.0)
 
@@ -307,7 +316,7 @@ def objective(trial):
         learning_rate=learning_rate,
         gamma=gamma,
         batch_size=batch_size,
-        net_arch=net_arch,
+        net_arch={'pi': pi_net_arch, 'qf': qf_net_arch},
         ent_coef=ent_coef,
         target_entropy=target_entropy,
         num_envs=4 
@@ -328,7 +337,7 @@ if __name__ == '__main__':
     # Run Optuna optimization
     #study = optuna.create_study(storage='sqlite:///my_study.db', study_name="drones", direction='maximize', load_if_exists=True)
     study = optuna.create_study(
-        study_name="drones",
+        study_name="drones2",
         storage='mysql+pymysql://optuna_user:Estg_12345#@localhost:3306/optuna_db',
         direction='maximize'
     )
