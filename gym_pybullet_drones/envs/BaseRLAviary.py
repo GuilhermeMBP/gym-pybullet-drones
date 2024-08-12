@@ -8,6 +8,8 @@ from gym_pybullet_drones.envs.BaseAviary import BaseAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ActionType, ObservationType, ImageType
 from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 
+
+
 class BaseRLAviary(BaseAviary):
     """Base single and multi-agent environment class for reinforcement learning."""
     
@@ -62,6 +64,7 @@ class BaseRLAviary(BaseAviary):
             The type of action space (1 or 3D; RPMS, thurst and torques, waypoint or velocity with PID control; etc.)
 
         """
+
         #### Create a buffer for the last .5 sec of actions ########
         self.ACTION_BUFFER_SIZE = int(ctrl_freq//2)
         self.action_buffer = deque(maxlen=self.ACTION_BUFFER_SIZE)
@@ -93,6 +96,44 @@ class BaseRLAviary(BaseAviary):
         #### Set a limit on the maximum target speed ###############
         if act == ActionType.VEL:
             self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_KMH * (1000/3600)
+
+        if act == ActionType.DISCRETE_2D_COMPLEX:
+            self.strength_levels = {
+                'strong': 0.05,
+                'med': 0.025,
+                'weak': 0.0125,
+                'very_weak': 0.00625,
+                'hover': 0
+            }
+
+            self.action_mappings = {
+                0: ('hover', 'strong'),
+                1: ('hover', 'med'),
+                2: ('hover', 'weak'),
+                3: ('med', 'strong'),
+                4: ('weak', 'med'),
+                5: ('very_weak', 'weak'),
+                6: ('strong', 'strong'),
+                7: ('med', 'med'),
+                8: ('weak', 'weak'),
+                9: ('hover', 'hover'),
+                10: ('strong', 'med'),
+                11: ('med', 'weak'),
+                12: ('weak', 'very_weak'),
+                13: ('strong', 'hover'),
+                14: ('med', 'hover'),
+                15: ('weak', 'hover'),
+                16: ('strong', 'med'),  #Starting from here, they are negative!
+                17: ('med', 'weak'),
+                18: ('weak', 'very_weak'),
+                19: ('strong', 'strong'),
+                20: ('med', 'med'),
+                21: ('weak', 'weak'),
+                22: ('med', 'strong'),
+                23: ('weak', 'med'),
+                24: ('very_weak', 'weak')
+
+}
 
     ################################################################################
 
@@ -262,30 +303,7 @@ class BaseRLAviary(BaseAviary):
                     rpm[k,1] = self.HOVER_RPM * (1+0.05*target[1]) #x=-0.028; y=-0.028 so it is the back right motor
                     rpm[k,2] = self.HOVER_RPM * (1+0.05*target[0]) #x=-0.028; y=0.028 so it is the back left motor
                     rpm[k,3] = self.HOVER_RPM * (1+0.05*target[0]) #x=0.028; y=0.028 so it is the front left motor
-                    """
-                    elif self.ACT_TYPE == ActionType.DISCRETE_2D:
-                        action_to_take = np.argmax(action)
-                        strong = 0.01
-                        weak = 0.005
-                        if action_to_take == 0: #STRONG LEFT
-                            rpm[k,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-                            rpm[k,2:] = np.repeat(self.HOVER_RPM * (1-strong), 2)
-                        elif action_to_take == 1: #WEAK LEFT
-                            rpm[k,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                            rpm[k,2:] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-                        elif action_to_take == 2: #UP
-                            rpm[k,:] = np.repeat(self.HOVER_RPM * (1+weak), 4)
-                        elif action_to_take == 3: #HOVER
-                            rpm[k,:] = np.repeat(self.HOVER_RPM, 4)
-                        elif action_to_take == 4: #DOWN
-                            rpm[k,:] = np.repeat(self.HOVER_RPM * (1-weak), 4)
-                        elif action_to_take == 5: #WEAK RIGHT
-                            rpm[k,:2] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-                            rpm[k,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                        elif action_to_take == 6: #STRONG RIGHT
-                            rpm[k,:2] = np.repeat(self.HOVER_RPM * (1-strong), 2)
-                            rpm[k,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)"""   
-                
+
                 else:
                     print("[ERROR] in BaseRLAviary._preprocessAction()")
                     exit()
@@ -315,82 +333,19 @@ class BaseRLAviary(BaseAviary):
             elif action_to_take == 6: #STRONG RIGHT
                 rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
                 rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
+        
         elif self.ACT_TYPE == ActionType.DISCRETE_3D:
             raise NotImplementedError("DISCRETE_3D not implemented yet")
+        
         elif self.ACT_TYPE == ActionType.DISCRETE_2D_COMPLEX:
-            strong = 0.05
-            med = 0.025
-            weak = 0.01
-            very_weak = 0.005
-            if action_to_take == 0: #STRONG LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
-            elif action_to_take == 1: #MED LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
-            elif action_to_take == 2: #WEAK LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM, 2)
-            elif action_to_take == 3: #STRONG UP-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
-            elif action_to_take == 4: #MED UP-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-            elif action_to_take == 5: #WEAK UP-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+very_weak), 2)
-            elif action_to_take == 6: #STRONG UP
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+strong), 4)
-            elif action_to_take == 7: #MED UP
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+med), 4)
-            elif action_to_take == 8: #WEAK UP
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1+weak), 4)
-            elif action_to_take == 9: #HOVER
-                rpm[0,:] = np.repeat(self.HOVER_RPM, 4)
-            elif action_to_take == 10: #STRONG UP-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+med), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-            elif action_to_take == 11: #MED UP-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
-            elif action_to_take == 12: #WEAK UP-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+very_weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-            elif action_to_take == 13: #STRONG RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+strong), 2)
-            elif action_to_take == 14: #MED RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+med), 2)
-            elif action_to_take == 15: #WEAK RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM, 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+weak), 2)
-            elif action_to_take == 16: #STRONG DOWN-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-med), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-strong), 2)
-            elif action_to_take == 17: #MED DOWN-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-med), 2)
-            elif action_to_take == 18: #WEAK DOWN-RIGHT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-very_weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-            elif action_to_take == 19: #STRONG DOWN
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-strong), 4)
-            elif action_to_take == 20: #MED DOWN
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-med), 4)
-            elif action_to_take == 21: #WEAK DOWN
-                rpm[0,:] = np.repeat(self.HOVER_RPM * (1-weak), 4)
-            elif action_to_take == 22: #STRONG DOWN-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-strong), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-med), 2)
-            elif action_to_take == 23: #MED DOWN-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-med), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-            elif action_to_take == 24: #WEAK DOWN-LEFT
-                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-weak), 2)
-                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-very_weak), 2)
-
+            right, left = self.action_mappings[action_to_take]
+            if action_to_take < 16:
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1+self.strength_levels[right]), 2)
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1+self.strength_levels[left]), 2)
+            else:
+                rpm[0,2:] = np.repeat(self.HOVER_RPM * (1-self.strength_levels[right]), 2)
+                rpm[0,:2] = np.repeat(self.HOVER_RPM * (1-self.strength_levels[left]), 2)
+                
         return rpm
 
     ################################################################################
