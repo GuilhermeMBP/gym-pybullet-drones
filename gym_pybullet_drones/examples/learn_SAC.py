@@ -77,6 +77,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                 train_env,
                 # tensorboard_log=filename+'/tb/',
                 policy_kwargs=policy_kwargs,
+                device='cuda',
                 verbose=1)
 
     #### Target cumulative rewards (problem-dependent) ##########

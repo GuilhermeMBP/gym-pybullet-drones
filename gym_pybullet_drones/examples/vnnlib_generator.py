@@ -2,13 +2,11 @@ import os
 import argparse
 
 DEFAULT_OBS = 'kin'
-DEFAULT_ACT = 'discrete_2d'
+DEFAULT_ACT = 'discrete_2d_complex'
 DEFAULT_OUT_CONDITION = 'robustness'
 
 def run(obs=DEFAULT_OBS, act=DEFAULT_ACT, dataset_folder=None, perturb=0, output_condition=DEFAULT_OUT_CONDITION):
-    if not dataset_folder:
-        raise ValueError('dataset_folder must be provided')
-    
+
     # make a constant based on the observation space
     obs_space = 0
     if obs == 'kin':
@@ -44,9 +42,8 @@ def run(obs=DEFAULT_OBS, act=DEFAULT_ACT, dataset_folder=None, perturb=0, output
                 if output_condition == 'quadrants':
                     # Check which quadrant the drone is in so we can define the correct actions
                     # There are situations that the l-ball is in between quadrants so we need to check if the drone is in the middle of the quadrants and in that cases we set looser constraints
-                    left = False
-                    right = False
-                    correct_actions = []
+                    left = right = up = down = False
+                    correct_actions = [9]
                     # Read the lines corresponding to the drone's coordinates in the observation space
                     for i in range(3):
                         # Read the line
@@ -55,27 +52,49 @@ def run(obs=DEFAULT_OBS, act=DEFAULT_ACT, dataset_folder=None, perturb=0, output
                             line_float = float(line)
                         except ValueError:
                             raise ValueError('The file in dataset is malformed somehow (NOT FLOATS)')
-                        correct_actions.append(9) # HOVER
+
+                        if i == 0:
+                            continue
                         # Check which quadrant the drone is in
-                        if i == 1 and line_float + perturb >= 1:    # y + perturb >= 1
-                            correct_actions.append(13,14,15) # RIGHT actions
-                            left = True
-                        if i == 1 and line_float - perturb < 1:  # y - perturb < 1
-                            correct_actions.append(0,1,2) # LEFT actions
-                            right = True
-                        if i == 2 and line_float + perturb >= 1:  # z + perturb >= 1
-                            correct_actions.append(19,20,21)    # DOWN actions
-                            if left:
-                                correct_actions.append(22,23,24)    # RIGHT DOWN actions
-                            if right:
-                                correct_actions.append(16,17,18)    # LEFT DOWN actions
-                        if i == 2 and line_float - perturb < 1:   # z - perturb < 1
-                            correct_actions.append(6,7,8)    # UP actions
-                            if left:
-                                correct_actions.append(3,4,5)       # LEFT UP actions
-                            if right:
-                                correct_actions.append(10,11,12)    # RIGHT UP actions
-                    
+                        elif i == 1:
+                            if line_float + perturb >= 1:    # y + perturb >= 1
+                                correct_actions.extend([14,15]) # RIGHT actions
+                                left = True
+                            if line_float - perturb < 1:  # y - perturb < 1
+                                correct_actions.extend([1,2]) # LEFT actions
+                                right = True
+                            if left and not right:
+                                correct_actions.append(13) # STRONG RIGHT
+                            if right and not left:
+                                correct_actions.append(0) # STRONG LEFT
+                        elif i == 2:
+                            if line_float + perturb >= 1:  # z + perturb >= 1
+                                correct_actions.extend([20,21])    # DOWN actions
+                                up = True
+                                if left:
+                                    correct_actions.extend([23,24])    # RIGHT DOWN actions
+                                if right:
+                                    correct_actions.extend([16,17,18])    # LEFT DOWN actions
+                            if line_float - perturb < 1:   # z - perturb < 1
+                                correct_actions.extend([7,8])    # UP actions
+                                down = True
+                                if left:
+                                    correct_actions.extend([11,12])       # RIGHT UP actions
+                                if right:
+                                    correct_actions.extend([4,5])    # LEFT UP actions
+                            if up and not down:
+                                correct_actions.append(19) # STRONG DOWN
+                                if left and not right:
+                                    correct_actions.append(22) # STRONG RIGHT DOWN
+                                if right and not left:
+                                    correct_actions.append(16) # STRONG LEFT DOWN
+                            if down and not up:
+                                correct_actions.append(6) # STRONG UP
+                                if left and not right:
+                                    correct_actions.append(10) # STRONG RIGHT UP
+                                if right and not left:
+                                    correct_actions.append(3) # STRONG LEFT UP
+                        
                     # Go back to the start of the file
                     f.seek(0)
 
