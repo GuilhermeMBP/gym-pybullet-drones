@@ -1,18 +1,6 @@
-"""Script demonstrating the use of `gym_pybullet_drones`'s Gymnasium interface.
+"""Script to generate dataset files.
 
-Classes HoverAviary and MultiHoverAviary are used as learning envs for the PPO algorithm.
-
-Example
--------
-In a terminal, run as:
-
-    $ python learn.py --multiagent false
-    $ python learn.py --multiagent true
-
-Notes
------
-This is a minimal working example integrating `gym-pybullet-drones` with 
-reinforcement learning library `stable-baselines3`.
+Class HoverAviary is used as learning envs for the SAC algorithm.
 
 """
 import os
@@ -33,21 +21,19 @@ from gym_pybullet_drones.envs.MultiHoverAviary import MultiHoverAviary
 from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.utils.enums import ObservationType, ActionType
 
-DEFAULT_GUI = True
+DEFAULT_GUI = False
 DEFAULT_RECORD_VIDEO = False
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
 DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
 DEFAULT_ACT = ActionType('discrete_2d_complex') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
-DEFAULT_AGENTS = 2
-DEFAULT_MA = False
 DEFAULT_STEP = 0.1
 DEFAULT_AXIS = 'y'
 
-def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP, x=0, y=0, z=0.1125, step_axis=DEFAULT_AXIS):
+def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP, x=0, y=0, z=0.1125, step_axis=DEFAULT_AXIS):
 
-    filename = os.path.join(output_folder, '/app/results/save-08.02.2024_15.16.31')
+    filename = os.path.join(output_folder, '/app/results/save-08.14.2024_06.39.34')
     if not os.path.exists(filename):
         os.makedirs(filename+'/')
 
@@ -80,15 +66,15 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         z = 0.1125
     
     #### Show (and record a video of) the model's performance ##
-    if not multiagent:
-        test_env = HoverAviary(gui=gui,
-                               obs=DEFAULT_OBS,
-                               act=DEFAULT_ACT,
-                               record=record_video, 
-                               initial_xyzs=np.array([[x, y, z]]))
-        test_env_nogui = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
+
+    test_env = HoverAviary(gui=gui,
+                            obs=DEFAULT_OBS,
+                            act=DEFAULT_ACT,
+                            record=record_video, 
+                            initial_xyzs=np.array([[x, y, z]]))
+    test_env_nogui = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
     logger = Logger(logging_freq_hz=int(test_env.CTRL_FREQ),
-                num_drones=DEFAULT_AGENTS if multiagent else 1,
+                num_drones=1,
                 output_folder=output_folder,
                 colab=colab
                 )
@@ -113,7 +99,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
     start = time.time()
     #variable to be used in the register of the dataset
     j = 1
-    dir_name = 'dataset'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S")+'_start_'+str(x)+'_'+str(y)+'_'+str(z)
+    dir_name = 'dataset_'+datetime.now().strftime("%d.%m.%Y")+"/"+datetime.now().strftime("%H.%M.%S")
     for i in range((test_env.EPISODE_LEN_SEC)*test_env.CTRL_FREQ):
         action, _states = model.predict(obs,
                                         deterministic=True
@@ -124,30 +110,18 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         print("Obs:", obs, "\tAction", action, "\tReward:", reward, "\tTerminated:", terminated, "\tTruncated:", truncated)
 
         if DEFAULT_ACT != ActionType.DISCRETE_2D and DEFAULT_ACT != ActionType.DISCRETE_3D and DEFAULT_ACT != ActionType.DISCRETE_2D_COMPLEX and DEFAULT_OBS == ObservationType.KIN:
-            if not multiagent:
-                logger.log(drone=0,
-                    timestamp=i/test_env.CTRL_FREQ,
-                    state=np.hstack([obs2[0:3],
-                                        np.zeros(4),
-                                        obs2[3:15],
-                                        act2[1],
-                                        act2[1],
-                                        act2[0],
-                                        act2[0]
-                                        ]),
-                    control=np.zeros(12)
-                    )
-            else:
-                for d in range(DEFAULT_AGENTS):
-                    logger.log(drone=d,
-                        timestamp=i/test_env.CTRL_FREQ,
-                        state=np.hstack([obs2[d][0:3],
-                                            np.zeros(4),
-                                            obs2[d][3:15],
-                                            act2[d]
-                                            ]),
-                        control=np.zeros(12)
-                        )
+            logger.log(drone=0,
+                timestamp=i/test_env.CTRL_FREQ,
+                state=np.hstack([obs2[0:3],
+                                    np.zeros(4),
+                                    obs2[3:15],
+                                    act2[1],
+                                    act2[1],
+                                    act2[0],
+                                    act2[0]
+                                    ]),
+                control=np.zeros(12)
+                )
         elif DEFAULT_OBS == ObservationType.POS_RPY or DEFAULT_OBS == ObservationType.KIN:
             if DEFAULT_ACT == ActionType.DISCRETE_2D or DEFAULT_ACT == ActionType.DISCRETE_3D or DEFAULT_ACT == ActionType.DISCRETE_2D_COMPLEX:
                 action_to_take = np.argmax(act2)
@@ -169,7 +143,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                 if (step > 0 and obs2[index_axis] > (j * step) + test_env.INIT_XYZS[0][index_axis]) or (step < 0 and obs2[index_axis] < (j * step) + test_env.INIT_XYZS[0][index_axis]):
                     if not os.path.exists(dir_name):
                         os.makedirs(dir_name)
-                    with open(dir_name+'/obs_act_'+step_axis+'_equals_'+ str(j).zfill(3)+'.csv', 'w') as file:
+                    with open(dir_name+'/obs_act_'+step_axis+'_equals_'+ str("%.2f" % (obs2[index_axis])).zfill(4)+'_start_'+str(y)+'_'+str(z)+'.csv', 'w') as file:
                         for obs_mom in obs2:
                             file.write(f'{obs_mom}\n')
                         file.write(f'{action_to_take}\n')
@@ -182,14 +156,13 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
             obs = test_env.reset(seed=42, options={})
     test_env.close()
 
-    #if plot and DEFAULT_OBS == ObservationType.KIN:
-    logger.plot()
+    if plot and DEFAULT_OBS == ObservationType.KIN:
+        logger.plot()
     input("Press Enter to continue...")
 
 if __name__ == '__main__':
-    #### Define and parse (optional) arguments for the script ##
+    #### Define and parse arguments for the script ##
     parser = argparse.ArgumentParser(description='Single agent reinforcement learning example script')
-    parser.add_argument('--multiagent',         default=DEFAULT_MA,            type=str2bool,      help='Whether to use example LeaderFollower instead of Hover (default: False)', metavar='')
     parser.add_argument('--gui',                default=DEFAULT_GUI,           type=str2bool,      help='Whether to use PyBullet GUI (default: True)', metavar='')
     parser.add_argument('--record_video',       default=DEFAULT_RECORD_VIDEO,  type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--output_folder',      default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
