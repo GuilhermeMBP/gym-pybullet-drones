@@ -96,9 +96,9 @@ def run(obs=DEFAULT_OBS, act=DEFAULT_ACT, dataset_folder=None, perturb=0, output
                             if up and not down:
                                 correct_actions.append(19) # STRONG DOWN
                                 if left and not right:
-                                    correct_actions.append(16) # STRONG RIGHT DOWN
+                                    correct_actions.append(22) # STRONG RIGHT DOWN
                                 if right and not left:
-                                    correct_actions.append(22) # STRONG LEFT DOWN
+                                    correct_actions.append(16) # STRONG LEFT DOWN
                             if down and not up:
                                 correct_actions.append(6) # STRONG UP
                                 if left and not right:
