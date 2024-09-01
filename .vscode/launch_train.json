@@ -10,6 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "python": "/opt/conda/envs/drones/bin/python",
             "args": "--gui false --record_video false",
             "justMyCode": false
         }

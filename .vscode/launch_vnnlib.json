@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--obs kin --act discrete_2d_complex --dataset_folder dataset_20.08.2024/final --perturb 0.01 --output_condition quadrants --visualize_dataset True --visualize_actions True",
+            "python": "/opt/conda/envs/drones/bin/python",
+            "args": "--obs kin --act discrete_2d_complex --dataset_folder /app/VFRN4UAVs/discrete/datasets/dataset_31.08.2024/final --perturb 0.01 --output_condition quadrants --visualize_dataset True --visualize_actions True",
             "justMyCode": false
         }
     ]
