@@ -156,13 +156,13 @@ def run(obs=DEFAULT_OBS, act=DEFAULT_ACT, dataset_folder=None, perturb=0, output
                             if all_y_values[-1] > 1:
                                 vnnlib.write(f'(assert (>= X_{i} {0.2 - 0.01}))\n')
                                 vnnlib.write(f'(assert (<= X_{i} {0.2 + 0.01}))\n')
-                                # Append the actions that are correct (all except the left actions)
-                                correct_actions = [0,1,2,3,4,5,6,7,8,9,19,20,21,22,23,24]
+                                # Append the actions that are correct (all except the left actions upwards and right actions downwards)
+                                correct_actions = [0,1,2,3,4,5,6,7,8,9,16,17,18,19,20,21]
                             else:
                                 vnnlib.write(f'(assert (>= X_{i} {-0.2 - 0.01}))\n')
                                 vnnlib.write(f'(assert (<= X_{i} {-0.2 + 0.01}))\n')
-                                # Append the actions that are correct (all except the right actions)
-                                correct_actions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+                                # Append the actions that are correct (all except the right actions upwards and left actions downwards)
+                                correct_actions = [6,7,8,9,10,11,12,13,14,15,19,20,21,22,23,24]
                         # There is situations in 1D and 2D that some observations are always 0 so if it is the case we shoud not perturb them
                         elif line_float == 0:
                             vnnlib.write(f'(assert (>= X_{i} 0.0))\n')
@@ -303,10 +303,9 @@ def plot_data(all_x_values, all_y_values, actions=None):
     
     # Draw vertical line at z=1
     plt.axvline(x=1, color='gray', linestyle='--', linewidth=1, label='z=1')
-    
-    for x_values, y_values, act in zip(all_x_values, all_y_values, actions):
-        plt.scatter(x_values, y_values, color='blue')
-        if actions is not None:
+    if actions is not None:
+        for x_values, y_values, act in zip(all_x_values, all_y_values, actions):
+            plt.scatter(x_values, y_values, color='blue', s=8)
             # Get the direction and intensity for the action
             action = action_table[act]
             direction = action["direction"]
@@ -320,13 +319,21 @@ def plot_data(all_x_values, all_y_values, actions=None):
             # Plot the arrow
             if scale != 0:
                 plt.quiver(x_values, y_values, vector[0], vector[1], angles='xy', scale_units='xy', scale=1/scale , color=color, width=0.002)
-
+    else:
+        for x_values, y_values in zip(all_x_values, all_y_values):
+            plt.scatter(x_values, y_values, color='blue', s=5)
+    #Plot the rest
     plt.xlim(0, 2)
     plt.ylim(0, 2)
     plt.xlabel('y')
     plt.ylabel('z')
     if actions is not None:
         plt.title('Pontos do dataset com as ações tomadas')
+        #Plot the legend with 0 length lines to show only the labels
+        plt.quiver(0, 0, 0, 0, angles='xy', scale_units='xy', scale=1, color='red', label='Forte')
+        plt.quiver(0, 0, 0, 0, angles='xy', scale_units='xy', scale=1, color='yellow', label='Média')
+        plt.quiver(0, 0, 0, 0, angles='xy', scale_units='xy', scale=1, color='green', label='Fraca')
+        plt.quiver(0, 0, 0, 0, angles='xy', scale_units='xy', scale=1, color='black', label='Nula: Voo estacionário')
     else:
         plt.title('Pontos do dataset')
     plt.legend()
@@ -334,7 +341,7 @@ def plot_data(all_x_values, all_y_values, actions=None):
 
 if __name__ == '__main__':
     #### Define and parse (optional) arguments for the script ##
-    parser = argparse.ArgumentParser(description='vnnlib_generator.py: Generates vnnlib files from a dataset')
+    parser = argparse.ArgumentParser(description='vnnlib_generator.py: Generates vnnlib files from a dataset and plots the dataset')
     parser.add_argument('--obs',         default=DEFAULT_OBS,            type=str,      help='what is the observation space of the dataset(kin)', metavar='')
     parser.add_argument('--act',                default=DEFAULT_ACT,           type=str,      help='what is the action space of the dataset(rpm,one_d_rpm, two_d_rpm, discrete_2d, discrete_2d_complex)', metavar='')
     parser.add_argument('--dataset_folder', type=str, required=True, help='The folder that contains the dataset recorded', metavar='')
