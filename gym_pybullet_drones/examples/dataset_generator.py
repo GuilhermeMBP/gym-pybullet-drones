@@ -27,23 +27,23 @@ DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
 DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
-DEFAULT_ACT = ActionType('discrete_2d_complex') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
+DEFAULT_ACT = ActionType('discrete_2d_complex') # 'rpm' or 'one_d_rpm' or two_d_rpm or discrete_2d or discrete_2d_complex
 DEFAULT_STEP = 0.1
 DEFAULT_AXIS = 'y'
 
 def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True, step=DEFAULT_STEP, x=0, y=0, z=0.1125, step_axis=DEFAULT_AXIS):
 
-    filename = os.path.join(output_folder, '/app/results/save-08.14.2024_06.39.34')
+    filename = os.path.join(output_folder, '/app/VFRN4UAVs/discrete/models/save-440reward')
     if not os.path.exists(filename):
         os.makedirs(filename+'/')
 
     #### Print training progression ############################
     best = 0
-    with np.load(filename+'/evaluations.npz') as data:
-        for j in range(data['timesteps'].shape[0]):
-            print(str(data['timesteps'][j])+","+str(data['results'][j][0]))
-            if data['results'][j][0] > best:
-                best = data['results'][j][0]
+    #with np.load(filename+'/evaluations.npz') as data:
+    #    for j in range(data['timesteps'].shape[0]):
+    #        print(str(data['timesteps'][j])+","+str(data['results'][j][0]))
+    #        if data['results'][j][0] > best:
+    #            best = data['results'][j][0]
 
     print("Best reward:", best)
 
@@ -99,7 +99,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
     start = time.time()
     #variable to be used in the register of the dataset
     j = 1
-    dir_name = 'dataset_'+datetime.now().strftime("%d.%m.%Y")+"/"+datetime.now().strftime("%H.%M.%S")
+    dir_name = '/app/VFRN4UAVs/discrete/datasets/dataset_'+datetime.now().strftime("%d.%m.%Y")+"/"+datetime.now().strftime("%H.%M.%S")
     for i in range((test_env.EPISODE_LEN_SEC)*test_env.CTRL_FREQ):
         action, _states = model.predict(obs,
                                         deterministic=True
@@ -147,7 +147,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
                         for obs_mom in obs2:
                             file.write(f'{obs_mom}\n')
                         file.write(f'{action_to_take}\n')
-                    j += 1
+                    j += 1or discrete_3d 
 
         test_env.render()
         print(terminated)
@@ -162,7 +162,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
 
 if __name__ == '__main__':
     #### Define and parse arguments for the script ##
-    parser = argparse.ArgumentParser(description='Single agent reinforcement learning example script')
+    parser = argparse.ArgumentParser(description='dataset generator')
     parser.add_argument('--gui',                default=DEFAULT_GUI,           type=str2bool,      help='Whether to use PyBullet GUI (default: True)', metavar='')
     parser.add_argument('--record_video',       default=DEFAULT_RECORD_VIDEO,  type=str2bool,      help='Whether to record a video (default: False)', metavar='')
     parser.add_argument('--output_folder',      default=DEFAULT_OUTPUT_FOLDER, type=str,           help='Folder where to save logs (default: "results")', metavar='')
