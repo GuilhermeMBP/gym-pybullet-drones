@@ -49,7 +49,7 @@ class HoverAviary(BaseRLAviary):
 
         """
         #TODO I CHANGED TIHS FROM 1,1,1 TO: 0,0,1
-        self.TARGET_POS = np.array([0,0,1])
+        self.TARGET_POS = np.array([0,1,1])
         #TODO I CHANGED TIHS FROM 8 TO 16
         self.EPISODE_LEN_SEC = 8
         super().__init__(drone_model=drone_model,
@@ -68,18 +68,24 @@ class HoverAviary(BaseRLAviary):
     ################################################################################
     
     def _computeReward(self):
-        """Computes the current reward value.
 
-        Returns
-        -------
-        float
-            The reward.
-
-        """
         state = self._getDroneStateVector(0)
-        #ret = max(0, 2 - (np.linalg.norm(self.TARGET_POS[1:3]-state[1:3])**4))
-        #ret = max(0, 3 - (np.linalg.norm(self.TARGET_POS[:3]-state[:3])) - (abs(state[7]) if abs(state[7])>0.2 else 0) - (abs(state[8]) if abs(state[8])>0.2 else 0))
-        ret = 2 - (np.linalg.norm(self.TARGET_POS[:3]-state[:3])) - (abs(state[7])**0.5 if abs(state[7])>0.2 else 0) - (abs(state[8])**0.5 if abs(state[8])>0.2 else 0) - (20 if state[2] < 0.11 else 0)
+
+        #Penalize position       
+        position_error = np.linalg.norm(self.TARGET_POS[:3]-state[:3]) 
+        # Penalize high pitch and roll
+        pitch_penalty = abs(state[7])**0.5 if abs(state[7]) > 0.2 else 0
+        roll_penalty = abs(state[8])**0.5 if abs(state[8]) > 0.2 else 0
+        
+        # Penalize low altitude
+        altitude_penalty = 20 if state[2] < 0.11 else 0
+        
+        # Aggregate rewards with penalties
+        ret = 2 - (position_error + pitch_penalty + roll_penalty + altitude_penalty)
+
+        # Ensure reward is non-negative
+        ret = max(ret, 0)
+
         return ret
 
     ################################################################################

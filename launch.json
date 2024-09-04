@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Run learn_SAC_GR.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/learn_SAC_GR.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--multiagent=False",
+                "--output_folder=results",
+                "--gui=True",
+                "--plot=True",
+                "--colab=False",
+                "--record_video=False",
+                "--local=True",
+                "--learning_rate=0.0004",
+                "--gamma=0.99"
+            ],
+            "env": {
+                "WANDB_API_KEY": "50d1b882bfae1f90083621f3cd0da0ee5c287a82"
+            }
+        }
+    ]
+}

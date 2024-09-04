@@ -1,0 +1,16 @@
+Script de aprendizagem: Learn.py
+script para visualização do melhor modelo obtido: just_visualize.py
+
+
+Ativar ambiente drones:
+conda avtivate drones
+
+comando para correr o optuna:
+optuna-dashboard 'mysql+pymysql://optuna_user:Estg_12345#@localhost:3306/optuna_db'
+
+correr o script learn.py
+python learn.py
+
+
+correr o visualizador:
+python just_visualize.py

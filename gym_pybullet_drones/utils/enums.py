@@ -43,7 +43,9 @@ class ActionType(Enum):
     # ALTERED
     TWO_D_RPM = "two_d_rpm"     # 2D (2 inputs for each side) with RPMs
     DISCRETE_2D = "discrete_2d" # 2D with discrete actions (left and right)
+    DISCRETE_2D_COMPLEX = "discrete_2d_complex" # 2D with discrete actions (left, right, up, down, up-left, up-right, down-left, down-right)
     DISCRETE_3D = "discrete_3d" # 3D with discrete actions (left, right, up, down, forward, backward)
+
 
 ################################################################################
 

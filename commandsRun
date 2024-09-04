@@ -1,0 +1,27 @@
+
+python learn.py --multiagent False --optimize True
+
+optuna-dashboard sqlite:///my_study.db
+
+
+mysql
+optuna-dashboard 'mysql+pymysql://optuna_user:Estg_12345#@localhost:3306/optuna_db'
+
+
+open Optuna local DB
+mysql -u optuna_user -p -h localhost -P 3306 optuna_db
+
+pass:
+Estg_12345#
+
+
+
+
+
+
+
+
+
+
+
+
